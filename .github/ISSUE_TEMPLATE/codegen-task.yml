@@ -1,0 +1,17 @@
+name: Codegen Task
+description: Track schema or fixture code generation work.
+title: "[codegen] "
+labels: ["codegen"]
+body:
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What should be generated or regenerated?
+    validations:
+      required: true
+  - type: textarea
+    id: contract
+    attributes:
+      label: Contract Impact
+      description: Describe any wire-format or fixture impact.

@@ -1,0 +1,14 @@
+{
+  "operationId": "label-1",
+  "kind": "apply_label",
+  "target": {
+    "owner": "UbU-project",
+    "repo": "ubu-github-adapter",
+    "issueNumber": 7
+  },
+  "summary": "Apply managed label ubu",
+  "payload": {
+    "type": "label",
+    "label": "ubu"
+  }
+}

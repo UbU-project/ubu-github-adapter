@@ -1,0 +1,20 @@
+{
+  "repository": {
+    "owner": "UbU-project",
+    "name": "ubu-github-adapter",
+    "defaultBranch": "main",
+    "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter",
+    "apiId": 1001
+  },
+  "ciEvents": [
+    {
+      "repository": "UbU-project/ubu-github-adapter",
+      "runId": 6001,
+      "workflowName": "CI",
+      "status": "completed",
+      "conclusion": "success",
+      "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter/actions/runs/6001",
+      "updatedAt": "2026-06-10T15:30:00Z"
+    }
+  ]
+}

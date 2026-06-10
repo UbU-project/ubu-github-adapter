@@ -1,0 +1,32 @@
+{
+  "repository": {
+    "owner": "UbU-project",
+    "name": "ubu-github-adapter",
+    "defaultBranch": "main",
+    "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter",
+    "apiId": 1001
+  },
+  "issues": [
+    {
+      "repository": "UbU-project/ubu-github-adapter",
+      "id": 2001,
+      "number": 7,
+      "title": "Import GitHub issues",
+      "body": "Normalize issue state into UbU candidates.",
+      "state": "open",
+      "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter/issues/7",
+      "updatedAt": "2026-06-10T14:30:00Z",
+      "labels": ["adapter"]
+    }
+  ],
+  "comments": [
+    {
+      "repository": "UbU-project/ubu-github-adapter",
+      "id": 3001,
+      "issueNumber": 7,
+      "body": "Fixture comment",
+      "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter/issues/7#issuecomment-3001",
+      "updatedAt": "2026-06-10T14:35:00Z"
+    }
+  ]
+}

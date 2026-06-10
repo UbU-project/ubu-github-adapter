@@ -1,0 +1,16 @@
+name: Contract Change
+description: Propose a change to the adapter contract.
+title: "[contract] "
+labels: ["contract"]
+body:
+  - type: textarea
+    id: change
+    attributes:
+      label: Proposed Change
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Compatibility
+      description: Describe migration or backwards compatibility concerns.

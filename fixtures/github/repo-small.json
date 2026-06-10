@@ -1,0 +1,25 @@
+{
+  "repository": {
+    "owner": "UbU-project",
+    "name": "ubu-github-adapter",
+    "defaultBranch": "main",
+    "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter",
+    "apiId": 1001
+  },
+  "labels": [
+    {
+      "repository": "UbU-project/ubu-github-adapter",
+      "id": 1,
+      "name": "ubu",
+      "color": "5319e7",
+      "description": "UbU"
+    },
+    {
+      "repository": "UbU-project/ubu-github-adapter",
+      "id": 2,
+      "name": "ubu-managed",
+      "color": "0e8a16",
+      "description": "UbU managed"
+    }
+  ]
+}
