@@ -1,7 +1,7 @@
 use crate::markers::{is_managed_label, MANAGED_LABELS};
 use crate::projection::operations::{
     GitHubProjectionOperation, GitHubProjectionOperationKind, GitHubProjectionPayload,
-    GitHubProjectionTarget,
+    GitHubProjectionTarget, ManagedLabelPreflightPayload,
 };
 
 pub fn managed_label_preflight(
@@ -20,11 +20,18 @@ pub fn managed_label_preflight(
         return None;
     }
 
-    Some(GitHubProjectionOperation::managed_label_preflight(
-        "managed-label-preflight",
-        GitHubProjectionTarget::repository(owner, repo),
-        missing,
-    ))
+    let owner = owner.into();
+    let repo = repo.into();
+
+    Some(GitHubProjectionOperation {
+        operation_id: format!("managed-label-preflight-{owner}-{repo}"),
+        kind: GitHubProjectionOperationKind::ManagedLabelPreflight,
+        target: GitHubProjectionTarget::repository(owner, repo),
+        summary: "Create missing UbU managed labels".to_owned(),
+        payload: GitHubProjectionPayload::ManagedLabelPreflight(ManagedLabelPreflightPayload::new(
+            missing,
+        )),
+    })
 }
 
 pub fn apply_managed_label(

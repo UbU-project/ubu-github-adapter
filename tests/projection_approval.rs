@@ -3,8 +3,12 @@ use ubu_core::{AuthoritySource, UbuTimestamp};
 use ubu_github_adapter::approval::validate_projection_approval_with_existing_labels;
 use ubu_github_adapter::errors::AdapterError;
 use ubu_github_adapter::projection::labels::apply_managed_label;
-use ubu_github_adapter::projection::operations::GitHubProjectionTarget;
-use ubu_github_adapter::projection::preview::preview_for_operations;
+use ubu_github_adapter::projection::operations::{
+    GitHubProjectionOperation, GitHubProjectionTarget,
+};
+use ubu_github_adapter::projection::preview::{
+    preview_for_operations, preview_for_operations_with_existing_labels,
+};
 
 #[test]
 fn approval_is_per_preview_batch() {
@@ -44,4 +48,47 @@ fn approval_fails_when_managed_label_preflight_is_missing() {
     let error = validate_projection_approval_with_existing_labels(&preview, &approval, &labels)
         .unwrap_err();
     assert!(matches!(error, AdapterError::MissingManagedLabel { label } if label == "ubu-managed"));
+}
+
+#[test]
+fn approval_accepts_required_preflight_for_fresh_repo() {
+    let operation = apply_managed_label(
+        "op-1",
+        GitHubProjectionTarget::issue("UbU-project", "ubu-github-adapter", 7),
+        "ubu",
+    );
+    let preview = preview_for_operations_with_existing_labels(vec![operation], &[]).unwrap();
+    let approval = ProjectionApproval {
+        preview_id: preview.preview.id.clone(),
+        approved: true,
+        approved_at: UbuTimestamp::now_utc(),
+        authority_source: AuthoritySource::User,
+    };
+
+    validate_projection_approval_with_existing_labels(&preview, &approval, &[]).unwrap();
+}
+
+#[test]
+fn arbitrary_label_preflight_fails_approval() {
+    let operation = GitHubProjectionOperation::managed_label_preflight(
+        "bad-preflight",
+        GitHubProjectionTarget::repository("UbU-project", "ubu-github-adapter"),
+        vec!["not-ubu-managed".to_owned()],
+    );
+    let preview = preview_for_operations(vec![operation]).unwrap();
+    let approval = ProjectionApproval {
+        preview_id: preview.preview.id.clone(),
+        approved: true,
+        approved_at: UbuTimestamp::now_utc(),
+        authority_source: AuthoritySource::User,
+    };
+    let labels = vec!["ubu".to_owned(), "ubu-managed".to_owned()];
+
+    let error = validate_projection_approval_with_existing_labels(&preview, &approval, &labels)
+        .unwrap_err();
+    assert!(matches!(
+        error,
+        AdapterError::ForbiddenProjectionOperation { reason }
+            if reason.contains("not-ubu-managed")
+    ));
 }

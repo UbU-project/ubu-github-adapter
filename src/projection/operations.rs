@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use ubu_core::SourceRef;
 
-use crate::markers::{is_managed_label, MANAGED_LABELS};
+use crate::markers::MANAGED_LABELS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -60,10 +60,6 @@ pub struct ManagedLabelPreflightPayload {
 
 impl ManagedLabelPreflightPayload {
     pub fn new(missing_labels: Vec<String>) -> Self {
-        let missing_labels = missing_labels
-            .into_iter()
-            .filter(|label| is_managed_label(label))
-            .collect();
         Self { missing_labels }
     }
 

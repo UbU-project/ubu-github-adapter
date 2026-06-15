@@ -7,6 +7,8 @@ use ubu_core::projection::preview::ProjectionPreview;
 use ubu_core::{ObjectType, UbuId, UbuTimestamp};
 
 use crate::errors::Result;
+use crate::markers::MANAGED_LABELS;
+use crate::projection::labels::managed_label_preflight;
 use crate::projection::operations::{GitHubProjectionOperation, GitHubProjectionOperationKind};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -17,6 +19,20 @@ pub struct ProjectionPreviewBatch {
 }
 
 pub fn preview_for_operations(
+    operations: Vec<GitHubProjectionOperation>,
+) -> Result<ProjectionPreviewBatch> {
+    preview_for_operations_with_existing_labels(operations, &managed_labels())
+}
+
+pub fn preview_for_operations_with_existing_labels(
+    operations: Vec<GitHubProjectionOperation>,
+    existing_labels: &[String],
+) -> Result<ProjectionPreviewBatch> {
+    let operations = with_managed_label_preflight(operations, existing_labels);
+    preview_for_operations_unchecked(operations)
+}
+
+fn preview_for_operations_unchecked(
     operations: Vec<GitHubProjectionOperation>,
 ) -> Result<ProjectionPreviewBatch> {
     let core_operations = operations
@@ -34,6 +50,37 @@ pub fn preview_for_operations(
         preview,
         github_operations: operations,
     })
+}
+
+fn with_managed_label_preflight(
+    operations: Vec<GitHubProjectionOperation>,
+    existing_labels: &[String],
+) -> Vec<GitHubProjectionOperation> {
+    let mut repositories = operations
+        .iter()
+        .map(|operation| {
+            (
+                operation.target.owner.as_str(),
+                operation.target.repo.as_str(),
+            )
+        })
+        .collect::<Vec<_>>();
+    repositories.sort_unstable();
+    repositories.dedup();
+
+    let mut preflight = repositories
+        .into_iter()
+        .filter_map(|(owner, repo)| managed_label_preflight(owner, repo, existing_labels))
+        .collect::<Vec<_>>();
+    preflight.extend(operations);
+    preflight
+}
+
+fn managed_labels() -> Vec<String> {
+    MANAGED_LABELS
+        .iter()
+        .map(|label| (*label).to_owned())
+        .collect()
 }
 
 fn core_operation_from_github(

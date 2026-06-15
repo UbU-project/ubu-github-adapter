@@ -17,5 +17,7 @@ pub use operations::{
     GitHubProjectionOperation, GitHubProjectionOperationKind, GitHubProjectionTarget,
     ManagedLabelPreflightPayload,
 };
-pub use preview::{preview_for_operations, ProjectionPreviewBatch};
+pub use preview::{
+    preview_for_operations, preview_for_operations_with_existing_labels, ProjectionPreviewBatch,
+};
 pub use result::{GitHubOperationResult, GitHubProjectionResult};

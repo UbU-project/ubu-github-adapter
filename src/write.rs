@@ -8,6 +8,7 @@ use ubu_core::UbuTimestamp;
 use crate::approval::validate_projection_approval_with_existing_labels;
 use crate::client::GitHubClient;
 use crate::errors::{AdapterError, Result};
+use crate::markers::is_managed_label;
 use crate::projection::operations::{
     GitHubProjectionOperation, GitHubProjectionOperationKind, GitHubProjectionPayload,
 };
@@ -175,6 +176,12 @@ impl GitHubProjectionWriter {
         operation: &GitHubProjectionOperation,
         label: &str,
     ) -> Result<()> {
+        if !is_managed_label(label) {
+            return Err(AdapterError::ForbiddenProjectionOperation {
+                reason: format!("label creation is limited to UbU managed labels, got {label}"),
+            });
+        }
+
         let route = format!(
             "/repos/{}/{}/labels",
             operation.target.owner, operation.target.repo

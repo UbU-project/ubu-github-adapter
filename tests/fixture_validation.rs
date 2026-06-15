@@ -9,6 +9,7 @@ fn github_fixtures_validate() {
         "fixtures/github/ci-small.json",
         "fixtures/github/issues-small.json",
         "fixtures/github/prs-small.json",
+        "fixtures/github/repo-fresh.json",
         "fixtures/github/repo-small.json",
     ] {
         GitHubFixture::from_path(path)
