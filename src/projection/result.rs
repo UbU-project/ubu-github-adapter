@@ -3,7 +3,7 @@ use ubu_core::projection::result::ProjectionResult;
 use ubu_core::AuthoritySource;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubOperationResult {
     pub operation_id: String,
     pub applied: bool,
@@ -12,7 +12,7 @@ pub struct GitHubOperationResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubProjectionResult {
     pub core_result: ProjectionResult,
     pub authority_source: AuthoritySource,

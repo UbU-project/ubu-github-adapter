@@ -7,7 +7,7 @@ use crate::sources::{
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct NormalizedRepositoryState {
     pub repository: GitHubRepositorySource,
     pub issues: Vec<GitHubIssueSource>,

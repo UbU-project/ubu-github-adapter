@@ -1,3 +1,4 @@
+use ubu_core::core::{Task, TaskStatus};
 use ubu_core::{AuthoritySource, UbuId};
 use ubu_github_adapter::candidate_mapping::map_repository_state;
 use ubu_github_adapter::fixture::GitHubFixture;
@@ -12,9 +13,29 @@ fn maps_candidates_with_canonical_task_ids_and_source_urls() {
     let candidate = &mapped.candidates[0];
     assert!(candidate.candidate_id.starts_with("task_"));
     UbuId::parse(&candidate.candidate_id).unwrap();
-    assert_eq!(candidate.authority_source, AuthoritySource::Delegated);
+    assert_eq!(candidate.authority_source, AuthoritySource::System);
+
+    let task: Task = serde_json::from_value(candidate.payload.clone()).unwrap();
+    assert_eq!(task.status, TaskStatus::Active);
+    assert_eq!(task.provenance.authority_source, AuthoritySource::System);
+    let source_refs = task.provenance.source_refs.as_ref().unwrap();
+    assert_eq!(source_refs.len(), 1);
+    assert_eq!(
+        source_refs[0].url.as_deref(),
+        Some("https://github.com/UbU-project/ubu-github-adapter/issues/7")
+    );
     assert_eq!(
         mapped.external_references[0].source.url.as_deref(),
+        Some("https://github.com/UbU-project/ubu-github-adapter/issues/7")
+    );
+    assert_eq!(
+        mapped.external_references[0]
+            .provenance
+            .source_refs
+            .as_ref()
+            .unwrap()[0]
+            .url
+            .as_deref(),
         Some("https://github.com/UbU-project/ubu-github-adapter/issues/7")
     );
 }

@@ -14,7 +14,7 @@ pub enum AdapterError {
     #[error("UbU core validation failed: {0}")]
     Core(#[from] ubu_core::UbuError),
 
-    #[error("GitHub API request failed: {0}")]
+    #[error("GitHub API request failed")]
     GitHub(#[from] octocrab::Error),
 
     #[error("projection approval does not approve preview {preview_id}")]

@@ -2,9 +2,9 @@
   "repository": {
     "owner": "UbU-project",
     "name": "ubu-github-adapter",
-    "defaultBranch": "main",
-    "htmlUrl": "https://github.com/UbU-project/ubu-github-adapter",
-    "apiId": 1001
+    "default_branch": "main",
+    "html_url": "https://github.com/UbU-project/ubu-github-adapter",
+    "api_id": 1001
   },
   "labels": [
     {

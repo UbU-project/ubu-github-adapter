@@ -1,15 +1,15 @@
 {
-  "operationId": "comment-1",
+  "operation_id": "comment-1",
   "kind": "create_comment",
   "target": {
     "owner": "UbU-project",
     "repo": "ubu-github-adapter",
-    "issueNumber": 7
+    "issue_number": 7
   },
   "summary": "Create UbU-managed comment",
   "payload": {
     "type": "comment",
-    "taskId": "task_018f3c8e9b2a7c4d8f1e2a3b4c5d6e7f",
+    "task_id": "task_018f3c8e9b2a7c4d8f1e2a3b4c5d6e7f",
     "body": "<!-- ubu-managed: true -->\n<!-- ubu-origin: ubu://task/task_018f3c8e9b2a7c4d8f1e2a3b4c5d6e7f -->\n\nReady."
   }
 }

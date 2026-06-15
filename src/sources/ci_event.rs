@@ -22,7 +22,7 @@ pub enum GitHubCiConclusion {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubCiEventSource {
     pub repository: String,
     pub run_id: u64,

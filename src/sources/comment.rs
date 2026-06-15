@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use ubu_core::UbuTimestamp;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubCommentSource {
     pub repository: String,
     pub id: u64,

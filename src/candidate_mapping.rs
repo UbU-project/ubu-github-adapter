@@ -1,5 +1,5 @@
 use serde_json::json;
-use ubu_core::core::{ExternalReference, Task, TaskStatus};
+use ubu_core::core::{ExternalReference, MootReasonCode, Task, TaskStatus};
 use ubu_core::store::CandidateObject;
 use ubu_core::{AuthoritySource, ObjectType, Provenance, SourceRef, UbuId, UbuTimestamp};
 
@@ -58,14 +58,15 @@ pub fn map_issue(issue: &GitHubIssueSource) -> Result<(ExternalReference, Task, 
     );
     let observed_at = issue.updated_at;
     let reference = external_reference(issue.title.clone(), source.clone(), observed_at);
-    let status = match issue.state {
-        GitHubIssueState::Open => TaskStatus::Proposed,
-        GitHubIssueState::Closed => TaskStatus::Completed,
+    let (status, moot_reason_code) = match issue.state {
+        GitHubIssueState::Open => (TaskStatus::Active, None),
+        GitHubIssueState::Closed => (TaskStatus::Completed, None),
     };
     let task = task(
         issue.title.clone(),
         issue.body.clone(),
         status,
+        moot_reason_code,
         source,
         observed_at,
     );
@@ -83,14 +84,17 @@ pub fn map_pull_request(
     );
     let observed_at = pull_request.updated_at;
     let reference = external_reference(pull_request.title.clone(), source.clone(), observed_at);
-    let status = match pull_request.state {
-        GitHubPullRequestState::Open => TaskStatus::InProgress,
-        GitHubPullRequestState::Closed | GitHubPullRequestState::Merged => TaskStatus::Completed,
+    let (status, moot_reason_code) = match pull_request.state {
+        GitHubPullRequestState::Open => (TaskStatus::Active, None),
+        GitHubPullRequestState::Closed | GitHubPullRequestState::Merged => {
+            (TaskStatus::Completed, None)
+        }
     };
     let task = task(
         pull_request.title.clone(),
         pull_request.body.clone(),
         status,
+        moot_reason_code,
         source,
         observed_at,
     );
@@ -109,20 +113,31 @@ pub fn map_ci_event(
     let observed_at = ci_event.updated_at;
     let title = format!("CI: {}", ci_event.workflow_name);
     let reference = external_reference(title.clone(), source.clone(), observed_at);
-    let status = match (ci_event.status, ci_event.conclusion) {
-        (GitHubCiStatus::Completed, Some(GitHubCiConclusion::Success)) => TaskStatus::Completed,
+    let (status, moot_reason_code) = match (ci_event.status, ci_event.conclusion) {
+        (GitHubCiStatus::Completed, Some(GitHubCiConclusion::Success)) => {
+            (TaskStatus::Completed, None)
+        }
         (
             GitHubCiStatus::Completed,
             Some(GitHubCiConclusion::Failure | GitHubCiConclusion::TimedOut),
-        ) => TaskStatus::Blocked,
-        (GitHubCiStatus::Completed, _) => TaskStatus::Canceled,
-        (GitHubCiStatus::Queued | GitHubCiStatus::InProgress, _) => TaskStatus::InProgress,
+        ) => (TaskStatus::Failed, None),
+        (GitHubCiStatus::Completed, _) => {
+            (TaskStatus::Moot, Some(MootReasonCode::AutomationObsolete))
+        }
+        (GitHubCiStatus::Queued | GitHubCiStatus::InProgress, _) => (TaskStatus::Active, None),
     };
     let description = Some(format!(
         "GitHub Actions run {} is {:?}.",
         ci_event.run_id, ci_event.status
     ));
-    let task = task(title, description, status, source, observed_at);
+    let task = task(
+        title,
+        description,
+        status,
+        moot_reason_code,
+        source,
+        observed_at,
+    );
     let candidate = candidate_for_task(&task, observed_at)?;
     Ok((reference, task, candidate))
 }
@@ -145,6 +160,7 @@ fn task(
     title: String,
     description: Option<String>,
     status: TaskStatus,
+    moot_reason_code: Option<MootReasonCode>,
     source: SourceRef,
     observed_at: UbuTimestamp,
 ) -> Task {
@@ -153,6 +169,7 @@ fn task(
         title,
         description,
         status,
+        moot_reason_code,
         objective_id: None,
         due_at: None,
         provenance: provenance(source, observed_at),
@@ -165,16 +182,17 @@ fn candidate_for_task(task: &Task, submitted_at: UbuTimestamp) -> Result<Candida
         object_type: "Task".to_owned(),
         payload: serde_json::to_value(task)?,
         submitted_at,
-        authority_source: AuthoritySource::Delegated,
+        authority_source: AuthoritySource::System,
     })
 }
 
 fn provenance(source: SourceRef, created_at: UbuTimestamp) -> Provenance {
     Provenance {
         created_at,
-        created_by: Some("github".to_owned()),
-        authority_source: AuthoritySource::Delegated,
-        source: Some(source),
+        created_by: Some("ubu-github-adapter".to_owned()),
+        authority_source: AuthoritySource::System,
+        source: None,
+        source_refs: Some(vec![source]),
     }
 }
 
@@ -188,7 +206,7 @@ fn source_ref(source_kind: &str, source_id: String, url: &str) -> SourceRef {
 
 pub fn candidate_metadata(task: &Task) -> serde_json::Value {
     json!({
-        "taskId": task.id,
+        "task_id": task.id,
         "title": task.title,
         "status": task.status,
     })

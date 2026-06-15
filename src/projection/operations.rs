@@ -14,7 +14,7 @@ pub enum GitHubProjectionOperationKind {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubProjectionTarget {
     pub owner: String,
     pub repo: String,
@@ -53,7 +53,7 @@ impl GitHubProjectionTarget {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct ManagedLabelPreflightPayload {
     pub missing_labels: Vec<String>,
 }
@@ -78,7 +78,7 @@ impl ManagedLabelPreflightPayload {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "camelCase")]
+#[serde(tag = "type", rename_all = "snake_case")]
 pub enum GitHubProjectionPayload {
     ManagedLabelPreflight(ManagedLabelPreflightPayload),
     Label { label: String },
@@ -87,7 +87,7 @@ pub enum GitHubProjectionPayload {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct GitHubProjectionOperation {
     pub operation_id: String,
     pub kind: GitHubProjectionOperationKind,

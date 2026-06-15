@@ -1,5 +1,5 @@
 {
-  "operationId": "issue-1",
+  "operation_id": "issue-1",
   "kind": "create_managed_issue",
   "target": {
     "owner": "UbU-project",
@@ -7,7 +7,7 @@
   },
   "summary": "Create UbU-managed issue",
   "payload": {
-    "type": "managedIssue",
+    "type": "managed_issue",
     "title": "Managed task",
     "body": "<!-- ubu-managed: true -->\n<!-- ubu-origin: ubu://task/task_018f3c8e9b2a7c4d8f1e2a3b4c5d6e7f -->\n\nDo the work."
   }
