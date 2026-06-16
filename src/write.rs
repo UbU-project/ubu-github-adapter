@@ -1,4 +1,3 @@
-use serde_json::json;
 use ubu_core::projection::approval::ProjectionApproval;
 use ubu_core::projection::result::{
     OperationResult, OperationResultStatus, ProjectionResult, ProjectionResultStatus,
@@ -109,26 +108,34 @@ impl GitHubProjectionWriter {
                 GitHubProjectionOperationKind::ApplyLabel,
                 GitHubProjectionPayload::Label { label },
             ) => {
+                validate_managed_label_write(label)?;
                 let number = issue_number(operation)?;
-                let route = format!(
-                    "/repos/{}/{}/issues/{number}/labels",
-                    operation.target.owner, operation.target.repo
-                );
-                let body = json!({ "labels": [label] });
-                let _: serde_json::Value = self.client.octocrab().post(route, Some(&body)).await?;
+                self.client
+                    .api()
+                    .add_labels_to_issue(
+                        &operation.target.owner,
+                        &operation.target.repo,
+                        number,
+                        std::slice::from_ref(label),
+                    )
+                    .await?;
                 Ok(Some(format!("label {label} applied")))
             }
             (
                 GitHubProjectionOperationKind::RemoveLabel,
                 GitHubProjectionPayload::Label { label },
             ) => {
+                validate_managed_label_write(label)?;
                 let number = issue_number(operation)?;
-                let route = format!(
-                    "/repos/{}/{}/issues/{number}/labels/{label}",
-                    operation.target.owner, operation.target.repo
-                );
-                let _: serde_json::Value =
-                    self.client.octocrab().delete(route, None::<&()>).await?;
+                self.client
+                    .api()
+                    .remove_label_from_issue(
+                        &operation.target.owner,
+                        &operation.target.repo,
+                        number,
+                        label,
+                    )
+                    .await?;
                 Ok(Some(format!("label {label} removed")))
             }
             (
@@ -136,30 +143,31 @@ impl GitHubProjectionWriter {
                 GitHubProjectionPayload::Comment { body, .. },
             ) => {
                 let number = issue_number(operation)?;
-                let route = format!(
-                    "/repos/{}/{}/issues/{number}/comments",
-                    operation.target.owner, operation.target.repo
-                );
-                let request = json!({ "body": body });
-                let _: serde_json::Value =
-                    self.client.octocrab().post(route, Some(&request)).await?;
+                self.client
+                    .api()
+                    .create_comment(
+                        &operation.target.owner,
+                        &operation.target.repo,
+                        number,
+                        body,
+                    )
+                    .await?;
                 Ok(Some("managed comment created".to_owned()))
             }
             (
                 GitHubProjectionOperationKind::CreateManagedIssue,
                 GitHubProjectionPayload::ManagedIssue { title, body },
             ) => {
-                let route = format!(
-                    "/repos/{}/{}/issues",
-                    operation.target.owner, operation.target.repo
-                );
-                let request = json!({
-                    "title": title,
-                    "body": body,
-                    "labels": ["ubu", "ubu-managed"],
-                });
-                let _: serde_json::Value =
-                    self.client.octocrab().post(route, Some(&request)).await?;
+                self.client
+                    .api()
+                    .create_issue(
+                        &operation.target.owner,
+                        &operation.target.repo,
+                        title,
+                        body,
+                        &["ubu".to_owned(), "ubu-managed".to_owned()],
+                    )
+                    .await?;
                 Ok(Some("managed issue created".to_owned()))
             }
             _ => Err(AdapterError::ForbiddenProjectionOperation {
@@ -176,25 +184,31 @@ impl GitHubProjectionWriter {
         operation: &GitHubProjectionOperation,
         label: &str,
     ) -> Result<()> {
-        if !is_managed_label(label) {
-            return Err(AdapterError::ForbiddenProjectionOperation {
-                reason: format!("label creation is limited to UbU managed labels, got {label}"),
-            });
-        }
+        validate_managed_label_write(label)?;
 
-        let route = format!(
-            "/repos/{}/{}/labels",
-            operation.target.owner, operation.target.repo
-        );
         let color = if label == "ubu" { "5319e7" } else { "0e8a16" };
-        let body = json!({
-            "name": label,
-            "color": color,
-            "description": "UbU managed label",
-        });
-        let _: serde_json::Value = self.client.octocrab().post(route, Some(&body)).await?;
+        self.client
+            .api()
+            .create_label(
+                &operation.target.owner,
+                &operation.target.repo,
+                label,
+                color,
+                "UbU managed label",
+            )
+            .await?;
         Ok(())
     }
+}
+
+fn validate_managed_label_write(label: &str) -> Result<()> {
+    if !is_managed_label(label) {
+        return Err(AdapterError::UnmanagedLabelWrite {
+            label: label.to_owned(),
+        });
+    }
+
+    Ok(())
 }
 
 fn issue_number(operation: &GitHubProjectionOperation) -> Result<u64> {

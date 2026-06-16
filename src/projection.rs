@@ -1,5 +1,7 @@
 #[path = "projection/comments.rs"]
 pub mod comments;
+#[path = "projection/label_write.rs"]
+pub mod label_write;
 #[path = "projection/labels.rs"]
 pub mod labels;
 #[path = "projection/managed_issues.rs"]
@@ -13,6 +15,10 @@ pub mod reconciliation;
 #[path = "projection/result.rs"]
 pub mod result;
 
+pub use label_write::{
+    apply_managed_label_write, read_managed_label_observation, GitHubLabelWrite,
+    ManagedLabelObservation, ManagedLabelWriteResult,
+};
 pub use operations::{
     GitHubProjectionOperation, GitHubProjectionOperationKind, GitHubProjectionTarget,
     ManagedLabelPreflightPayload,

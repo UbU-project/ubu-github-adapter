@@ -29,6 +29,9 @@ pub enum AdapterError {
     #[error("missing managed label preflight for {label}")]
     MissingManagedLabel { label: String },
 
+    #[error("label write is limited to UbU managed labels, got {label}")]
+    UnmanagedLabelWrite { label: String },
+
     #[error("forbidden projection operation: {reason}")]
     ForbiddenProjectionOperation { reason: String },
 
