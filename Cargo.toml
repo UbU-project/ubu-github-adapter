@@ -13,7 +13,7 @@ serde_json = "1.0"
 thiserror = "1.0"
 tokio = { version = "1.38", features = ["macros", "rt-multi-thread"] }
 tracing = "0.1"
-ubu_core = { git = "https://github.com/UbU-project/ubu-core", rev = "139ce98a2dce40f8e73f472344d5cc4a8eb59db1" }
+ubu_core = { git = "https://github.com/UbU-project/ubu-core", rev = "2444b76e8eed75040e5a5791d1dce2579f0fe006" }
 
 [dev-dependencies]
 tempfile = "3.10"

@@ -172,6 +172,8 @@ fn task(
         moot_reason_code,
         objective_id: None,
         due_at: None,
+        preconditions: None,
+        effects: None,
         provenance: provenance(source, observed_at),
     }
 }
