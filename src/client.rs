@@ -7,10 +7,23 @@ use std::sync::{Arc, Mutex};
 
 use crate::auth::GitHubAuth;
 use crate::errors::Result;
+use crate::sources::{GitHubIssueSource, GitHubIssueState, GitHubRepositorySource};
 
 pub type GitHubApiFuture<'a, T> = Pin<Box<dyn Future<Output = Result<T>> + Send + 'a>>;
 
 pub trait GitHubApi: Send + Sync {
+    fn repository<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, GitHubRepositorySource>;
+
+    fn list_issues<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, Vec<GitHubIssueSource>>;
+
     fn create_label<'a>(
         &'a self,
         owner: &'a str,
@@ -90,9 +103,18 @@ impl GitHubClient {
 }
 
 type IssueKey = (String, String, u64);
+type RepositoryKey = (String, String);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RecordedGitHubOperation {
+    ReadRepository {
+        owner: String,
+        repo: String,
+    },
+    ListIssues {
+        owner: String,
+        repo: String,
+    },
     CreateLabel {
         owner: String,
         repo: String,
@@ -135,6 +157,8 @@ pub enum RecordedGitHubOperation {
 #[derive(Debug, Default)]
 pub struct RecordingGitHubApi {
     operations: Mutex<Vec<RecordedGitHubOperation>>,
+    repositories: Mutex<BTreeMap<RepositoryKey, GitHubRepositorySource>>,
+    issues: Mutex<BTreeMap<RepositoryKey, Vec<GitHubIssueSource>>>,
     issue_labels: Mutex<BTreeMap<IssueKey, Vec<String>>>,
 }
 
@@ -151,6 +175,38 @@ impl RecordingGitHubApi {
         let api = Self::new();
         api.seed_issue_labels(owner, repo, issue_number, labels);
         api
+    }
+
+    pub fn with_repository(repository: GitHubRepositorySource) -> Self {
+        let api = Self::new();
+        api.seed_repository(repository);
+        api
+    }
+
+    pub fn with_issues<I>(owner: &str, repo: &str, issues: I) -> Self
+    where
+        I: IntoIterator<Item = GitHubIssueSource>,
+    {
+        let api = Self::new();
+        api.seed_issues(owner, repo, issues);
+        api
+    }
+
+    pub fn seed_repository(&self, repository: GitHubRepositorySource) {
+        self.repositories.lock().unwrap().insert(
+            repository_key(&repository.owner, &repository.name),
+            repository,
+        );
+    }
+
+    pub fn seed_issues<I>(&self, owner: &str, repo: &str, issues: I)
+    where
+        I: IntoIterator<Item = GitHubIssueSource>,
+    {
+        self.issues
+            .lock()
+            .unwrap()
+            .insert(repository_key(owner, repo), issues.into_iter().collect());
     }
 
     pub fn seed_issue_labels<I, S>(&self, owner: &str, repo: &str, issue_number: u64, labels: I)
@@ -187,6 +243,52 @@ impl RecordingGitHubApi {
 }
 
 impl GitHubApi for RecordingGitHubApi {
+    fn repository<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, GitHubRepositorySource> {
+        let owner = owner.to_owned();
+        let repo = repo.to_owned();
+        Box::pin(async move {
+            self.record(RecordedGitHubOperation::ReadRepository {
+                owner: owner.clone(),
+                repo: repo.clone(),
+            });
+
+            Ok(self
+                .repositories
+                .lock()
+                .unwrap()
+                .get(&(owner.clone(), repo.clone()))
+                .cloned()
+                .unwrap_or_else(|| default_repository_source(&owner, &repo)))
+        })
+    }
+
+    fn list_issues<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, Vec<GitHubIssueSource>> {
+        let owner = owner.to_owned();
+        let repo = repo.to_owned();
+        Box::pin(async move {
+            self.record(RecordedGitHubOperation::ListIssues {
+                owner: owner.clone(),
+                repo: repo.clone(),
+            });
+
+            Ok(self
+                .issues
+                .lock()
+                .unwrap()
+                .get(&(owner, repo))
+                .cloned()
+                .unwrap_or_default())
+        })
+    }
+
     fn create_label<'a>(
         &'a self,
         owner: &'a str,
@@ -337,11 +439,70 @@ fn issue_key(owner: &str, repo: &str, issue_number: u64) -> IssueKey {
     (owner.to_owned(), repo.to_owned(), issue_number)
 }
 
+fn repository_key(owner: &str, repo: &str) -> RepositoryKey {
+    (owner.to_owned(), repo.to_owned())
+}
+
+fn default_repository_source(owner: &str, repo: &str) -> GitHubRepositorySource {
+    GitHubRepositorySource {
+        owner: owner.to_owned(),
+        name: repo.to_owned(),
+        default_branch: "main".to_owned(),
+        html_url: format!("https://github.com/{owner}/{repo}"),
+        api_id: 0,
+    }
+}
+
 struct OctocrabGitHubApi {
     octocrab: Octocrab,
 }
 
 impl GitHubApi for OctocrabGitHubApi {
+    fn repository<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, GitHubRepositorySource> {
+        Box::pin(async move {
+            let repository = self.octocrab.repos(owner, repo).get().await?;
+            Ok(GitHubRepositorySource {
+                owner: owner.to_owned(),
+                name: repo.to_owned(),
+                default_branch: repository
+                    .default_branch
+                    .unwrap_or_else(|| "main".to_owned()),
+                html_url: repository
+                    .html_url
+                    .map(|url| url.to_string())
+                    .unwrap_or_else(|| format!("https://github.com/{owner}/{repo}")),
+                api_id: repository.id.into_inner(),
+            })
+        })
+    }
+
+    fn list_issues<'a>(
+        &'a self,
+        owner: &'a str,
+        repo: &'a str,
+    ) -> GitHubApiFuture<'a, Vec<GitHubIssueSource>> {
+        Box::pin(async move {
+            let page = self
+                .octocrab
+                .issues(owner, repo)
+                .list()
+                .state(octocrab::params::State::All)
+                .per_page(100)
+                .send()
+                .await?;
+            let issues = self.octocrab.all_pages(page).await?;
+            issues
+                .into_iter()
+                .filter(|issue| issue.pull_request.is_none())
+                .map(|issue| map_octocrab_issue(owner, repo, issue))
+                .collect()
+        })
+    }
+
     fn create_label<'a>(
         &'a self,
         owner: &'a str,
@@ -444,6 +605,29 @@ impl GitHubApi for OctocrabGitHubApi {
     }
 }
 
+fn map_octocrab_issue(
+    owner: &str,
+    repo: &str,
+    issue: octocrab::models::issues::Issue,
+) -> Result<GitHubIssueSource> {
+    Ok(GitHubIssueSource {
+        repository: format!("{owner}/{repo}"),
+        id: issue.id.into_inner(),
+        number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        state: match issue.state {
+            octocrab::models::IssueState::Open => GitHubIssueState::Open,
+            octocrab::models::IssueState::Closed => GitHubIssueState::Closed,
+            _ => GitHubIssueState::Open,
+        },
+        html_url: issue.html_url.to_string(),
+        updated_at: ubu_core::UbuTimestamp::parse(issue.updated_at.to_rfc3339())?,
+        labels: issue.labels.into_iter().map(|label| label.name).collect(),
+        milestone: issue.milestone.map(|milestone| milestone.title),
+    })
+}
+
 #[derive(serde::Deserialize)]
 struct GitHubLabelResponse {
     name: String,
@@ -457,6 +641,10 @@ mod tests {
     async fn recording_api_records_all_trait_methods_and_updates_issue_labels() {
         let api = RecordingGitHubApi::with_issue_labels("UbU-project", "repo", 7, ["old"]);
 
+        api.repository("UbU-project", "repo").await.unwrap();
+        GitHubApi::list_issues(&api, "UbU-project", "repo")
+            .await
+            .unwrap();
         api.create_label("UbU-project", "repo", "ubu", "5319e7", "UbU managed label")
             .await
             .unwrap();
@@ -492,6 +680,14 @@ mod tests {
         assert_eq!(
             api.recorded_operations(),
             [
+                RecordedGitHubOperation::ReadRepository {
+                    owner: "UbU-project".to_owned(),
+                    repo: "repo".to_owned(),
+                },
+                RecordedGitHubOperation::ListIssues {
+                    owner: "UbU-project".to_owned(),
+                    repo: "repo".to_owned(),
+                },
                 RecordedGitHubOperation::CreateLabel {
                     owner: "UbU-project".to_owned(),
                     repo: "repo".to_owned(),
@@ -534,5 +730,43 @@ mod tests {
 
         api.clear_recorded_operations();
         assert!(api.recorded_operations().is_empty());
+    }
+
+    #[tokio::test]
+    async fn recording_api_serves_seeded_repository_and_issues() {
+        let api = RecordingGitHubApi::with_repository(GitHubRepositorySource {
+            owner: "UbU-project".to_owned(),
+            name: "repo".to_owned(),
+            default_branch: "trunk".to_owned(),
+            html_url: "https://github.com/UbU-project/repo".to_owned(),
+            api_id: 1001,
+        });
+        api.seed_issues(
+            "UbU-project",
+            "repo",
+            [GitHubIssueSource {
+                repository: "UbU-project/repo".to_owned(),
+                id: 2001,
+                number: 7,
+                title: "Import GitHub issues".to_owned(),
+                body: Some("Normalize issue state into UbU candidates.".to_owned()),
+                state: GitHubIssueState::Open,
+                html_url: "https://github.com/UbU-project/repo/issues/7".to_owned(),
+                updated_at: ubu_core::UbuTimestamp::parse("2026-06-10T14:30:00Z").unwrap(),
+                labels: vec!["adapter".to_owned()],
+                milestone: None,
+            }],
+        );
+
+        let repository = GitHubApi::repository(&api, "UbU-project", "repo")
+            .await
+            .unwrap();
+        let issues = GitHubApi::list_issues(&api, "UbU-project", "repo")
+            .await
+            .unwrap();
+
+        assert_eq!(repository.default_branch, "trunk");
+        assert_eq!(issues.len(), 1);
+        assert_eq!(issues[0].number, 7);
     }
 }
