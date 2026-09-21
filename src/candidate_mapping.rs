@@ -164,23 +164,15 @@ fn task(
     source: SourceRef,
     observed_at: UbuTimestamp,
 ) -> Task {
-    Task {
-        id: UbuId::new(ObjectType::Task),
+    let mut task = Task::new(
+        UbuId::new(ObjectType::Task),
         title,
-        description,
         status,
-        moot_reason_code,
-        objective_id: None,
-        assignee: None,
-        blocked_by: Vec::new(),
-        duration_estimate: None,
-        correlation_groups: Vec::new(),
-        tags: Vec::new(),
-        due_at: None,
-        preconditions: None,
-        effects: None,
-        provenance: provenance(source, observed_at),
-    }
+        provenance(source, observed_at),
+    );
+    task.description = description;
+    task.moot_reason_code = moot_reason_code;
+    task
 }
 
 fn candidate_for_task(task: &Task, submitted_at: UbuTimestamp) -> Result<CandidateObject> {
